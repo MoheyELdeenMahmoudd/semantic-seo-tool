@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Semantic SEO Tool | Deep Entity Analysis</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue:        #0000FF;
+      --dark-blue:   #0101B1;
+      --light-blue:  #D5E4FF;
+      --lightest:    #DBEAFE;
+      --dark:        #0F172A;
+      --slate:       #475569;
+      --border:      #E2E8F0;
+      --rose:        #F43F5E;
+      --rose-bg:     #FFF1F2;
+      --green:       #059669;
+      --green-bg:    #ECFDF5;
+      --amber-bg:    #FFFBEB;
+      --amber:       #D97706;
+      --surface:     #FFFFFF;
+      --page-bg:     #D5E4FF;
+      --radius-lg:   24px;
+      --radius-md:   14px;
+      --radius-sm:   8px;
+      --shadow:      0 4px 24px rgba(1,1,177,.10);
+    }
+
+    body {
+      font-family: 'Cairo', sans-serif;
+      background: var(--page-bg);
+      color: var(--dark);
+      min-height: 100vh;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      background: linear-gradient(135deg, var(--dark-blue) 0%, var(--blue) 100%);
+      color: #fff;
+      padding: 3.5rem 2rem 5rem;
+      text-align: center;
+      border-radius: 0 0 4rem 4rem;
+    }
+    .hero-icon {
+      width: 72px; height: 72px;
+      background: rgba(255,255,255,.15);
+      border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 2rem;
+      margin-bottom: 1.25rem;
+      backdrop-filter: blur(8px);
+    }
+    .hero h1 { font-size: clamp(1.75rem, 4vw, 2.75rem); font-weight: 900; }
+    .hero p  { font-size: 1.05rem; opacity: .85; margin-top: .5rem; }
+
+    /* ── Card container ── */
+    .container {
+      max-width: 860px;
+      margin: -2.5rem auto 0;
+      padding: 0 1.25rem 4rem;
+      position: relative; z-index: 10;
+    }
+
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      padding: 2rem;
+      margin-bottom: 1.5rem;
+    }
+
+    /* ── Section heading ── */
+    .section-title {
+      font-size: 1.1rem; font-weight: 700;
+      color: var(--dark-blue);
+      margin-bottom: 1rem;
+      display: flex; align-items: center; gap: .5rem;
+    }
+
+    /* ── Input grid ── */
+    .input-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 620px) { .input-grid { grid-template-columns: 1fr; } }
+
+    .input-box {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      position: relative;
+      background: var(--lightest);
+    }
+    .input-box:hover           { border-color: var(--blue); background: var(--light-blue); }
+    .input-box.comp            { border-color: #FDA4AF; background: var(--rose-bg); }
+    .input-box.comp:hover      { border-color: var(--rose); }
+    .input-box.has-file        { border-style: solid; }
+    .input-box.has-file.mine   { border-color: var(--green); background: var(--green-bg); }
+    .input-box.has-file.comp   { border-color: var(--rose); }
+
+    .input-box input[type="file"] {
+      position: absolute; inset: 0; opacity: 0;
+      cursor: pointer; width: 100%; height: 100%; z-index: 2;
+    }
+    .input-box-icon {
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      background: var(--surface);
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 1.3rem;
+      margin-bottom: .75rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,.06);
+    }
+    .input-box label { font-weight: 700; font-size: .95rem; display: block; margin-bottom: .3rem; }
+    .file-status { font-size: .8rem; font-weight: 600; padding: .25rem .75rem;
+                   border-radius: 20px; display: inline-block;
+                   background: rgba(255,255,255,.6); color: var(--slate); }
+
+    /* ── URL input ── */
+    .url-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .75rem;
+      margin-top: .75rem;
+    }
+    @media (max-width: 620px) { .url-row { grid-template-columns: 1fr; } }
+    .url-input {
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: .6rem .9rem;
+      font-family: 'Cairo', sans-serif;
+      font-size: .9rem;
+      width: 100%;
+      transition: border-color .2s;
+      direction: ltr; text-align: left;
+    }
+    .url-input:focus { outline: none; border-color: var(--blue); }
+
+    /* ── Analyze button ── */
+    .btn-analyze {
+      display: flex; align-items: center; justify-content: center; gap: .6rem;
+      width: 100%;
+      padding: .9rem 2rem;
+      font-family: 'Cairo', sans-serif;
+      font-size: 1.05rem; font-weight: 700;
+      color: var(--blue);
+      background: var(--surface);
+      border: 2px solid var(--blue);
+      border-radius: 100px;
+      cursor: pointer;
+      transition: background .2s, color .2s, transform .15s;
+      margin-top: 1.25rem;
+    }
+    .btn-analyze:hover  { background: var(--blue); color: #fff; }
+    .btn-analyze:active { transform: scale(.98); }
+    .btn-analyze:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* ── Loading ── */
+    .loading-card {
+      display: none;
+      padding: 2.5rem 2rem;
+      text-align: center;
+    }
+    .spinner {
+      font-size: 2.5rem; color: var(--blue);
+      animation: spin 1s linear infinite;
+      display: inline-block; margin-bottom: 1rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .progress-wrap {
+      max-width: 420px; margin: 1rem auto;
+      height: 8px; border-radius: 4px;
+      background: var(--lightest); overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--dark-blue), var(--blue));
+      border-radius: 4px;
+      width: 0%;
+      transition: width .5s ease;
+    }
+    .loading-step {
+      font-size: .9rem; color: var(--slate);
+      margin-top: .75rem; min-height: 1.4em;
+    }
+
+    /* ── Error banner ── */
+    .error-banner {
+      display: none;
+      background: #FEF2F2;
+      border: 1.5px solid #FCA5A5;
+      border-radius: var(--radius-md);
+      padding: 1rem 1.25rem;
+      color: #991B1B;
+      font-weight: 600;
+      font-size: .9rem;
+      gap: .6rem;
+      align-items: flex-start;
+    }
+    .error-banner.visible { display: flex; }
+
+    /* ── Results area ── */
+    #resultsArea { display: none; }
+
+    .results-header {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .results-title {
+      font-size: 1.25rem; font-weight: 700;
+      display: flex; align-items: center; gap: .6rem;
+    }
+    .btn-export {
+      display: flex; align-items: center; gap: .5rem;
+      padding: .65rem 1.4rem;
+      background: var(--green);
+      color: #fff;
+      border: none; border-radius: 100px;
+      font-family: 'Cairo', sans-serif;
+      font-size: .9rem; font-weight: 700;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .btn-export:hover { background: #047857; }
+    .btn-export:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* ── Stats row ── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: .75rem;
+      margin-bottom: 1.5rem;
+    }
+    .stat-card {
+      background: var(--lightest);
+      border-radius: var(--radius-md);
+      padding: 1rem;
+      text-align: center;
+    }
+    .stat-val { font-size: 1.75rem; font-weight: 900; color: var(--blue); }
+    .stat-label { font-size: .75rem; color: var(--slate); margin-top: .2rem; }
+
+    /* ── Tables ── */
+    .table-card {
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      margin-bottom: 1.25rem;
+    }
+    .table-card-head {
+      padding: .9rem 1.1rem;
+      display: flex; align-items: center; gap: .6rem;
+      font-weight: 700; font-size: .95rem;
+    }
+    .table-card-head.blue  { background: var(--lightest); color: var(--dark-blue); }
+    .table-card-head.rose  { background: var(--rose-bg);  color: #9F1239; }
+    .table-card-head.green { background: var(--green-bg); color: #065F46; }
+    .table-card-head p     { font-size: .78rem; font-weight: 400; color: var(--slate); margin-top: .15rem; }
+
+    .table-scroll { max-height: 380px; overflow-y: auto; }
+    .data-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    .data-table th {
+      position: sticky; top: 0; z-index: 1;
+      background: #F8FAFC;
+      padding: .65rem .9rem;
+      text-align: right;
+      font-weight: 700; font-size: .78rem;
+      color: var(--slate);
+      border-bottom: 1.5px solid var(--border);
+    }
+    .data-table td {
+      padding: .6rem .9rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: #F8FAFC; }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: .2rem .6rem;
+      border-radius: 20px;
+      font-size: .72rem; font-weight: 700;
+    }
+    .badge-concept      { background: #EFF6FF; color: #1D4ED8; }
+    .badge-organization { background: #F0FDF4; color: #065F46; }
+    .badge-person       { background: #FDF4FF; color: #7E22CE; }
+    .badge-place        { background: #FFFBEB; color: #92400E; }
+    .badge-service      { background: #F0F9FF; color: #075985; }
+    .badge-event        { background: #FFF7ED; color: #9A3412; }
+    .badge-product      { background: #FFF1F2; color: #9F1239; }
+
+    .badge-high     { background: #FEF2F2; color: #991B1B; }
+    .badge-medium   { background: #FFFBEB; color: #92400E; }
+    .badge-low      { background: #F0FDF4; color: #065F46; }
+
+    .badge-critical { background: #FEE2E2; color: #7F1D1D; }
+
+    .mentions-pill {
+      display: inline-block;
+      padding: .2rem .55rem;
+      border-radius: 20px;
+      font-size: .78rem; font-weight: 700;
+      background: var(--lightest); color: var(--blue);
+      min-width: 2.5rem; text-align: center;
+    }
+    .rose-pill {
+      background: var(--rose-bg); color: #9F1239;
+    }
+    .check { color: var(--green); font-size: 1rem; }
+    .dash  { color: #CBD5E1; }
+
+    /* ── Content brief ── */
+    .brief-body {
+      padding: 1.25rem;
+      line-height: 1.75;
+      font-size: .9rem;
+    }
+    .brief-body h2 { font-size: 1.1rem; color: var(--dark-blue); margin: 1.2rem 0 .4rem; }
+    .brief-body h3 { font-size: .95rem; color: var(--blue);      margin: .9rem 0 .3rem; }
+    .brief-body h4 { font-size: .88rem; color: var(--slate);     margin: .7rem 0 .25rem; }
+    .brief-body ul { padding-right: 1.4rem; margin: .4rem 0; }
+    .brief-body li { margin-bottom: .25rem; }
+    .brief-body strong { color: var(--dark); }
+
+    .btn-copy {
+      float: left; /* since RTL, this puts it on the right visually */
+      padding: .4rem 1rem;
+      border: 1.5px solid var(--green);
+      border-radius: 20px;
+      background: transparent;
+      color: var(--green);
+      font-family: 'Cairo', sans-serif;
+      font-size: .8rem; font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-copy:hover { background: var(--green-bg); }
+  </style>
+</head>
+
+<body>
+
+  <!-- ── Hero ── -->
+  <section class="hero">
+    <div class="hero-icon"><i class="fa-solid fa-brain"></i></div>
+    <h1>Semantic SEO Tool</h1>
+    <p>تحليل دلالي عميق باستخدام Nara AI — كيانات، فجوات، وخطط محتوى</p>
+  </section>
+
+  <div class="container">
+
+    <!-- ── Input Card ── -->
+    <div class="card">
+      <p class="section-title"><i class="fa-solid fa-upload"></i> رفع المحتوى للتحليل</p>
+      <p style="font-size:.85rem;color:var(--slate);margin-bottom:1rem;">
+        يدعم: رابط URL &nbsp;·&nbsp; ملف .txt / .docx / .csv / .xlsx / كود برمجي
+      </p>
+
+      <div class="input-grid">
+        <!-- My site -->
+        <div class="input-box mine" id="myBox">
+          <input type="file" id="myFile"
+                 accept=".txt,.docx,.csv,.xlsx,.xls,.py,.js,.ts,.html,.css,.jsx,.tsx,.java,.cpp,.cs" />
+          <div class="input-box-icon" style="color:var(--blue)">
+            <i class="fa-solid fa-file-alt"></i>
+          </div>
+          <label>مقالي / موقعي</label>
+          <span class="file-status" id="myFileStatus">اختر ملفاً أو أدخل رابطاً</span>
+        </div>
+
+        <!-- Competitors -->
+        <div class="input-box comp" id="compBox">
+          <input type="file" id="compFiles"
+                 accept=".txt,.docx,.csv,.xlsx,.xls,.py,.js,.ts,.html,.css,.jsx,.tsx,.java,.cpp,.cs"
+                 multiple />
+          <div class="input-box-icon" style="color:var(--rose)">
+            <i class="fa-solid fa-users"></i>
+          </div>
+          <label>ملفات المنافسين</label>
+          <span class="file-status" id="compFileStatus">يمكن تحديد حتى 5 ملفات</span>
+        </div>
+      </div>
+
+      <!-- URL inputs -->
+      <div class="url-row">
+        <input type="url" class="url-input" id="myUrl"
+               placeholder="https://موقعك.com/مقالك (اختياري)" />
+        <input type="url" class="url-input" id="compUrl1"
+               placeholder="https://منافس.com/مقاله (اختياري)" />
+      </div>
+
+      <!-- Error banner -->
+      <div class="error-banner" id="errorBanner">
+        <i class="fa-solid fa-circle-exclamation" style="flex-shrink:0;margin-top:.1rem"></i>
+        <span id="errorText"></span>
+      </div>
+
+      <button class="btn-analyze" id="analyzeBtn" onclick="runAnalysis()">
+        <span>بدء التحليل العميق</span>
+        <i class="fa-solid fa-arrow-left" style="font-size:.85rem"></i>
+      </button>
+    </div>
+
+    <!-- ── Loading Card ── -->
+    <div class="card loading-card" id="loadingCard">
+      <i class="fa-solid fa-circle-notch spinner"></i>
+      <h3 id="loadingTitle" style="font-size:1.1rem;font-weight:700;color:var(--dark)">
+        جارٍ تحليل المحتوى...
+      </h3>
+      <div class="progress-wrap">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+      <p class="loading-step" id="loadingStep">استخراج النصوص وإرسالها للـ AI</p>
+    </div>
+
+    <!-- ── Results ── -->
+    <div id="resultsArea">
+
+      <!-- Header + Export -->
+      <div class="results-header">
+        <div class="results-title">
+          <i class="fa-solid fa-chart-pie" style="color:var(--blue)"></i>
+          تقرير التحليل الدلالي
+        </div>
+        <button class="btn-export" id="exportBtn" onclick="downloadExcel()" disabled>
+          <i class="fa-solid fa-file-excel"></i>
+          تصدير Excel الكامل
+        </button>
+      </div>
+
+      <!-- Stats row -->
+      <div class="stats-row" id="statsRow"></div>
+
+      <!-- Semantic gaps table -->
+      <div class="table-card" id="gapsCard" style="display:none">
+        <div class="table-card-head rose">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div>
+            <div>الفجوات الدلالية</div>
+            <p>كيانات يذكرها منافسوك ولا تغطيها أنت — مرتبة حسب الأولوية</p>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>الكيان</th>
+                <th>النوع</th>
+                <th>الأولوية</th>
+                <th>المنافسون</th>
+                <th>التكرار</th>
+              </tr>
+            </thead>
+            <tbody id="gapsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Master entities table -->
+      <div class="table-card">
+        <div class="table-card-head blue">
+          <i class="fa-solid fa-scale-balanced"></i>
+          <div>
+            <div>الكيانات الشاملة (Master List)</div>
+            <p>جميع الكيانات المكتشفة مرتبة حسب الأهمية الدلالية</p>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>الكيان</th>
+                <th>النوع</th>
+                <th>الأهمية</th>
+                <th>الدلالة</th>
+                <th id="thMySite">موقعي</th>
+                <th id="thComp">المنافسين</th>
+              </tr>
+            </thead>
+            <tbody id="masterBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Content brief -->
+      <div class="table-card" id="briefCard" style="display:none">
+        <div class="table-card-head green">
+          <i class="fa-solid fa-pen-to-square"></i>
+          <div>
+            <div>خطة المحتوى المقترحة</div>
+            <p>هيكل مقال مولَّد تلقائياً لسدّ الفجوات الدلالية الحرجة</p>
+          </div>
+          <button class="btn-copy" onclick="copyBrief()" style="margin-right:auto">
+            <i class="fa-regular fa-copy"></i> نسخ
+          </button>
+        </div>
+        <div class="brief-body" id="briefBody"></div>
+      </div>
+
+    </div><!-- /resultsArea -->
+
+  </div><!-- /container -->
+
+  <script src="script.js"></script>
+</body>
+</html>
