@@ -392,7 +392,7 @@
             <i class="fa-solid fa-users"></i>
           </div>
           <label>ملفات المنافسين</label>
-          <span class="file-status" id="compFileStatus">يمكن تحديد حتى 5 ملفات</span>
+          <span class="file-status" id="compFileStatus">يمكن تحديد حتى 10 ملفات</span>
         </div>
       </div>
 
@@ -408,6 +408,19 @@
       <div class="error-banner" id="errorBanner">
         <i class="fa-solid fa-circle-exclamation" style="flex-shrink:0;margin-top:.1rem"></i>
         <span id="errorText"></span>
+      </div>
+
+<!-- إضافة حقل API Key -->
+      <div style="margin-top: 1.25rem;">
+        <label for="userApiKey" style="font-weight: 700; font-size: .95rem; display: block; margin-bottom: .4rem; color: var(--dark-blue);">
+          <i class="fa-solid fa-key"></i> مفتاح Nara API الخاص بك
+        </label>
+        <input type="password" class="url-input" id="userApiKey" 
+               placeholder="sk-nry-..." 
+               style="border: 2px solid var(--border); background: #F8FAFC;" />
+        <p style="font-size: .75rem; color: var(--slate); margin-top: .3rem;">
+          لن يتم حفظ المفتاح، يُستخدم فقط أثناء التحليل الحالي.
+        </p>
       </div>
 
       <button class="btn-analyze" id="analyzeBtn" onclick="runAnalysis()">

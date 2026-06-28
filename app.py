@@ -56,8 +56,8 @@ NARA_API_KEY    = os.environ.get("NARA_API_KEY", "")
 NARA_API_URL    = os.environ.get("NARA_API_URL", "https://api.nara.tools/v1/chat/completions")
 NARA_MODEL      = os.environ.get("NARA_MODEL", "claude-sonnet-4-5")
 
-MAX_CHARS       = 25_000   # token budget allows deep extraction
-MAX_COMPETITORS = 5        # cap to keep latency manageable
+MAX_CHARS       = 45_000   # token budget allows deep extraction
+MAX_COMPETITORS = 10        # cap to keep latency manageable
 
 if not NARA_API_KEY:
     logger.warning("NARA_API_KEY is not set — analysis endpoint will return 500.")
@@ -230,23 +230,20 @@ def extract_text_from_file(file_obj) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 
 SYSTEM_PROMPT = """أنت Lead Semantic SEO Architect من الدرجة الأولى.
-مهمتك: تحليل النصوص المقدمة واستخراج الكيانات الدلالية كخبير يرى الأفكار كـ "علاقات بين كيانات" (Entities & Relationships)، وليس مجرد كلمات منفصلة.
+مهمتك: إجراء تحليل دلالي شامل جداً (Exhaustive Semantic Analysis) للنصوص.
 
-قواعد التحليل (اتبعها بدقة):
-1. تجاهل تماماً: عناصر التنقل (Navigation)، الفوتر (Footer)، الهيدر (Header)، الروابط الجانبية، وأي نص ليس من Main Content.
-2. ركّز على: الكيانات ذات الصلة بـ Search Intent والموضوع المحوري للنص.
-3. صنّف الأهمية (importance) بناءً على: قرب الكيان من الموضوع الرئيسي، وتكراره، وعلاقته بنية البحث.
-4. أعط كل كيان درجة salience (0.0–1.0) تعكس ثقله الدلالي النسبي في النص.
-5. جمّع الكيانات في عناقيد دلالية (Topic Clusters) متجانسة.
-
-أنواع الكيانات المسموح بها فقط:
-Person | Organization | Place | Concept | Service | Event | Product
+قواعد التحليل الصارمة:
+1. المسح الشامل: استخرج *جميع* الكيانات الدلالية (Entities) المرتبطة بالموضوع، مهما كانت فرعية. لا تقتصر على الكيانات الرئيسية فقط.
+2. أنواع الكيانات: التزم فقط بـ Person | Organization | Place | Concept | Service | Event | Product.
+3. التقييم الدقيق: صنّف الكيانات المحورية كـ high، والداعمة كـ medium، والمصطلحات الفرعية جداً كـ low.
+4. الـ Salience: أعط كل كيان درجة (0.0 إلى 1.0) تعكس ارتباطه الوثيق بنية البحث (Search Intent).
+5. حظر الاختراع: استخرج الكيانات المذكورة صراحة أو المفهومة ضمناً من النص فقط، ولا تخترع معلومات خارجية.
+6. لا تلخص: أريد قائمة ضخمة وشاملة بكل مصطلح يعزز الـ Topical Authority.
 
 الإخراج: JSON خالص بدون أي نص إضافي، يطابق الهيكل المطلوب بدقة."""
 
 
 def _build_extraction_prompt(label: str, text: str) -> str:
-    """Build the per-source extraction prompt with CoT structure."""
     return f"""## المصدر: {label}
 
 ### النص المراد تحليله:
@@ -254,10 +251,11 @@ def _build_extraction_prompt(label: str, text: str) -> str:
 
 ### المطلوب:
 فكّر خطوة بخطوة (Chain of Thought):
-1. ما الموضوع الرئيسي لهذا النص؟
-2. ما الكيانات المحورية (high importance) التي يدور حولها؟
-3. ما الكيانات الداعمة (medium/low importance)؟
-4. كيف تتجمع هذه الكيانات في عناقيد دلالية؟
+1. قم بمسح النص "سطراً بسطر" ذهنياً لاكتشاف كل مصطلح له دلالة.
+2. استخرج الكيانات المحورية التي يدور حولها النص (High).
+3. استخرج الكيانات الداعمة، المرادفات، والخدمات الفرعية التي تعطي عمقاً للمقال (Medium).
+4. استخرج المصطلحات الدقيقة والتفاصيل (Low) التي تثبت خبرة الكاتب.
+5. جمّع هذه الكيانات في عناقيد دلالية (Topic Clusters) منطقية.
 
 ثم أعِد JSON يطابق هذا الهيكل تماماً:
 {{
@@ -267,7 +265,7 @@ def _build_extraction_prompt(label: str, text: str) -> str:
       "cluster_name": "اسم العنقود",
       "entities": [
         {{
-          "name": "اسم الكيان",
+          "name": "اسم الكيان الدقيق",
           "type": "Concept",
           "importance": "high",
           "salience": 0.85,
@@ -279,14 +277,8 @@ def _build_extraction_prompt(label: str, text: str) -> str:
 }}"""
 
 
-def call_nara_api(prompt: str, max_tokens: int = 4096) -> str:
-    """
-    Call Nara Router API using OpenAI-compatible /chat/completions endpoint.
-    Returns raw text content from the response.
-    """
-    if not NARA_API_KEY:
-        raise RuntimeError("NARA_API_KEY غير مضبوط في البيئة.")
-
+def call_nara_api(prompt: str, api_key: str, max_tokens: int = 4096) -> str:
+    # سيتم استخدام api_key الممرر بدلاً من NARA_API_KEY
     payload = {
         "model":       NARA_MODEL,
         "max_tokens":  max_tokens,
@@ -298,9 +290,10 @@ def call_nara_api(prompt: str, max_tokens: int = 4096) -> str:
     }
 
     headers = {
-        "Authorization": f"Bearer {NARA_API_KEY}",
+        "Authorization": f"Bearer {api_key}", # استخدام مفتاح المستخدم
         "Content-Type":  "application/json",
     }
+    # ... باقي كود الدالة كما هو ...
 
     try:
         resp = requests.post(
@@ -348,10 +341,9 @@ def _parse_json_from_response(raw: str) -> dict:
     raise ValueError(f"لم يمكن استخراج JSON من الرد: {raw[:200]}")
 
 
-def extract_entities_for_source(label: str, text: str) -> SourceAnalysis:
-    """Run deep semantic extraction for a single source."""
+def extract_entities_for_source(label: str, text: str, api_key: str) -> SourceAnalysis:
     prompt  = _build_extraction_prompt(label, text)
-    raw_out = call_nara_api(prompt, max_tokens=4096)
+    raw_out = call_nara_api(prompt, api_key=api_key, max_tokens=4096) # تمرير المفتاح
     data    = _parse_json_from_response(raw_out)
 
     # Validate & coerce via Pydantic
@@ -437,7 +429,7 @@ def compute_semantic_gaps(
 # 5. Content Brief Generation
 # ─────────────────────────────────────────────────────────────────────────────
 
-def generate_content_brief(gaps: list[SemanticGap], topic_context: str = "") -> str:
+def generate_content_brief(gaps: list[SemanticGap], api_key: str, topic_context: str = "") -> str:
     """Generate an SEO content brief targeting the top semantic gaps."""
     if not gaps:
         return ""
@@ -462,7 +454,7 @@ def generate_content_brief(gaps: list[SemanticGap], topic_context: str = "") -> 
 - أخرج Markdown فقط بدون مقدمات."""
 
     try:
-        return call_nara_api(prompt, max_tokens=2048)
+        return call_nara_api(prompt, api_key=api_key, max_tokens=2048)
     except Exception as exc:
         logger.warning("Content brief generation failed: %s", exc)
         return ""
@@ -593,6 +585,9 @@ def health():
 
 @app.route("/analyze", methods=["POST"])
 def analyze():
+    user_api_key = request.form.get("api_key", "").strip()
+    if not user_api_key:
+        return jsonify({"error": "مفتاح API مفقود أو غير صالح."}), 400
     """
     Main analysis endpoint.
 
@@ -602,9 +597,7 @@ def analyze():
         - competitors: one or more files
         - comp_urls:  one or more URL strings
     """
-    if not NARA_API_KEY:
-        return jsonify({"error": "NARA_API_KEY غير مضبوط على السيرفر. تواصل مع المشرف."}), 500
-
+   
     # ── Gather inputs ─────────────────────────────────────────────────────────
     my_file     = request.files.get("my_article")
     my_url      = request.form.get("my_url", "").strip()
@@ -648,14 +641,14 @@ def analyze():
 
     try:
         if my_text:
-            my_analysis = extract_entities_for_source("موقعي", my_text)
+            my_analysis = extract_entities_for_source("موقعي", my_text, user_api_key)
     except Exception as exc:
         logger.error("My-site extraction failed: %s\n%s", exc, traceback.format_exc())
         return jsonify({"error": f"فشل تحليل موقعك: {exc}"}), 500
 
     for label, text in comp_texts:
         try:
-            comp_analyses.append(extract_entities_for_source(label, text))
+            comp_analyses.append(extract_entities_for_source(label, text, user_api_key))
         except Exception as exc:
             logger.warning("Competitor extraction failed for %s: %s", label, exc)
 
@@ -681,7 +674,7 @@ def analyze():
     # ── Content brief ─────────────────────────────────────────────────────────
     topic_context = (my_analysis.clusters[0].cluster_name
                      if my_analysis and my_analysis.clusters else "")
-    brief = generate_content_brief(gaps, topic_context) if gaps else ""
+    brief = generate_content_brief(gaps, user_api_key, topic_context) if gaps else ""
 
     # ── Build result ──────────────────────────────────────────────────────────
     result = FullAnalysisResult(

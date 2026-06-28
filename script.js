@@ -126,10 +126,17 @@ function setLoading(on) {
 async function runAnalysis() {
   hideError();
 
-  const myFile    = document.getElementById("myFile").files[0];
-  const myUrl     = document.getElementById("myUrl").value.trim();
-  const compFiles = document.getElementById("compFiles").files;
-  const compUrl1  = document.getElementById("compUrl1").value.trim();
+  const myFile     = document.getElementById("myFile").files[0];
+  const myUrl      = document.getElementById("myUrl").value.trim();
+  const compFiles  = document.getElementById("compFiles").files;
+  const compUrl1   = document.getElementById("compUrl1").value.trim();
+  const userApiKey = document.getElementById("userApiKey").value.trim(); // السطر الجديد
+
+  // التأكد من إدخال الـ API Key
+  if (!userApiKey) {
+    showError("يرجى إدخال مفتاح Nara API الخاص بك للبدء.");
+    return;
+  }
 
   if (!myFile && !myUrl && compFiles.length === 0 && !compUrl1) {
     showError("يرجى رفع ملف أو إدخال رابط على الأقل قبل بدء التحليل.");
@@ -145,6 +152,7 @@ async function runAnalysis() {
   setLoadingTitle("جارٍ تحليل المحتوى باستخدام Nara AI...");
 
   const formData = new FormData();
+  formData.append("api_key", userApiKey); // إرسال المفتاح في الـ FormData
   if (myFile)   formData.append("my_article", myFile);
   if (myUrl)    formData.append("my_url",     myUrl);
   for (const f of compFiles) formData.append("competitors", f);
